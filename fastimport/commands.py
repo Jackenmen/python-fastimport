@@ -114,9 +114,10 @@ class ImportCommand(object):
 
 class BlobCommand(ImportCommand):
 
-    def __init__(self, mark, data, lineno=0):
+    def __init__(self, mark, original_oid, data, lineno=0):
         ImportCommand.__init__(self, b'blob')
         self.mark = mark
+        self.original_oid = original_oid
         self.data = data
         self.lineno = lineno
         # Provide a unique id in case the mark is missing
@@ -131,7 +132,11 @@ class BlobCommand(ImportCommand):
             mark_line = b''
         else:
             mark_line = b"\nmark :" + self.mark
-        return (b'blob' + mark_line + b'\n' +
+        if self.original_oid is None:
+            original_oid_line = b''
+        else:
+            original_oid_line = b"\noriginal-oid " + self.original_oid
+        return (b'blob' + mark_line + original_oid_line + b'\n' +
                 ('data %d\n' % len(self.data)).encode('utf-8') + self.data)
 
 
@@ -146,11 +151,12 @@ class CheckpointCommand(ImportCommand):
 
 class CommitCommand(ImportCommand):
 
-    def __init__(self, ref, mark, author, committer, message, from_,
+    def __init__(self, ref, mark, original_oid, author, committer, message, from_,
         merges, file_iter, lineno=0, more_authors=None, properties=None):
         ImportCommand.__init__(self, b'commit')
         self.ref = ref
         self.mark = mark
+        self.original_oid = original_oid
         self.author = author
         self.committer = committer
         self.message = message
@@ -202,6 +208,11 @@ class CommitCommand(ImportCommand):
             else:
                 mark_line = b'\nmark :' + self.mark
 
+        if self.original_oid is None:
+            original_oid_line = b''
+        else:
+            original_oid_line = b"\noriginal-oid " + self.original_oid
+
         if self.author is None:
             author_section = b''
         else:
@@ -247,6 +258,7 @@ class CommitCommand(ImportCommand):
             b'commit ',
             self.ref,
             mark_line,
+            original_oid_line,
             author_section + b'\n',
             committer,
             msg_section,
@@ -323,10 +335,11 @@ class ResetCommand(ImportCommand):
 
 class TagCommand(ImportCommand):
 
-    def __init__(self, id, from_, tagger, message):
+    def __init__(self, id, from_, original_oid, tagger, message):
         ImportCommand.__init__(self, b'tag')
         self.id = id
         self.from_ = from_
+        self.original_oid = original_oid
         self.tagger = tagger
         self.message = message
 
@@ -335,6 +348,10 @@ class TagCommand(ImportCommand):
             from_line = b''
         else:
             from_line = b'\nfrom ' + self.from_
+        if self.original_oid is None:
+            original_oid_line = b''
+        else:
+            original_oid_line = b"\noriginal-oid " + self.original_oid
         if self.tagger is None:
             tagger_line = b''
         else:
@@ -344,7 +361,7 @@ class TagCommand(ImportCommand):
         else:
             msg = self.message
             msg_section = ('\ndata %d\n' % len(msg)).encode('ascii') + msg
-        return b'tag ' + self.id + from_line + tagger_line + msg_section
+        return b'tag ' + self.id + from_line + original_oid_line + tagger_line + msg_section
 
 
 class FileCommand(ImportCommand):
